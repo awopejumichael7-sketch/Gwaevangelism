@@ -2682,7 +2682,15 @@ function handleLogin() {
                 showNotification('Logged out successfully', 'info');
             }
         }
+document.getElementById("logoutBtn").addEventListener("click", function () {
+    // Remove stored user data
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    sessionStorage.clear(); // optional
 
+    // Redirect to login page
+    window.location.href = "login.html";
+});
         function updateUserInterface() {
             document.getElementById('currentUserName').textContent = currentUser.name;
             document.getElementById('currentUserRole').textContent = currentUser.role.toUpperCase();
