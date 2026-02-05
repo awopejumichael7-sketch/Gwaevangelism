@@ -2688,8 +2688,15 @@ document.getElementById("logoutBtn").addEventListener("click", function () {
     localStorage.removeItem("authToken");
     sessionStorage.clear(); // optional
 
+    document.getElementById("logoutBtn").addEventListener("click", function () {
+    // Clear stored login data
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    sessionStorage.clear(); // optional
+
     // Redirect to login page
     window.location.href = "login.html";
+});
 });
         function updateUserInterface() {
             document.getElementById('currentUserName').textContent = currentUser.name;
