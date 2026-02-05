@@ -2190,7 +2190,352 @@
                 }
             }
         };
+// ============================================
+// AUTHENTICATION FUNCTIONS
+// ============================================
+function setupLoginListeners() {
+    // Role selection
+    document.querySelectorAll('.role-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.role-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            this.classList.add('selected');
+            
+            const role = this.getAttribute('data-role');
+            const groupSelection = document.getElementById('groupSelection');
+            
+            if (role === 'team-leader') {
+                groupSelection.style.display = 'block';
+            } else {
+                groupSelection.style.display = 'none';
+            }
+        });
+    });
+    
+    // Login button - activate click event
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    
+    // Also allow Enter key in login form
+    document.getElementById('password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            handleLogin();
+        }
+    });
+    
+    // Logout button
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+}
 
+function handleLogin() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const selectedRole = document.querySelector('.role-option.selected')?.getAttribute('data-role');
+    const group = document.getElementById('group')?.value;
+    
+    if (!selectedRole) {
+        showNotification('Please select a role', 'warning');
+        return;
+    }
+    
+    if (!username || !password) {
+        showNotification('Please enter username and password', 'warning');
+        return;
+    }
+    
+    if (selectedRole === 'team-leader' && !group) {
+        showNotification('Please select your group', 'warning');
+        return;
+    }
+    
+    let authenticated = false;
+    
+    // Check against default logins
+    if (selectedRole === 'pastor') {
+        if (username === DEFAULT_LOGINS.pastor.username && password === DEFAULT_LOGINS.pastor.password) {
+            currentUser = {
+                ...DEFAULT_LOGINS.pastor,
+                email: username
+            };
+            authenticated = true;
+        }
+    } else if (selectedRole === 'evangelist') {
+        if (username === DEFAULT_LOGINS.evangelist.username && password === DEFAULT_LOGINS.evangelist.password) {
+            currentUser = {
+                ...DEFAULT_LOGINS.evangelist,
+                email: username
+            };
+            authenticated = true;
+        }
+    } else if (selectedRole === 'team-leader') {
+        const teamLeader = DEFAULT_LOGINS.teamLeaders[username];
+        if (teamLeader && teamLeader.password === password && teamLeader.group === group) {
+            currentUser = {
+                ...teamLeader,
+                username: username,
+                email: `${username}@cacgoodworks.org`
+            };
+            authenticated = true;
+        }
+    } else if (selectedRole === 'guest') {
+        // Guest access with limited permissions
+        currentUser = {
+            role: 'guest',
+            name: 'Guest User',
+            email: 'guest@cacgoodworks.org',
+            permissions: ['view_dashboards', 'view_reports', 'view_groups']
+        };
+        authenticated = true;
+    }
+    
+    if (authenticated) {
+        // Save user to localStorage for offline access
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        
+        // Show main app with animation
+        document.getElementById('loginScreen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'grid';
+            
+            // Animate the main container in
+            document.getElementById('appContainer').style.opacity = '0';
+            document.getElementById('appContainer').style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                document.getElementById('appContainer').style.transition = 'all 0.5s ease';
+                document.getElementById('appContainer').style.opacity = '1';
+                document.getElementById('appContainer').style.transform = 'translateY(0)';
+            }, 50);
+        }, 300);
+        
+        // Update UI with user info
+        updateUserInterface();
+        
+        // Initialize app with user data
+        initApp();
+        
+        // Show success message
+        showNotification(`Welcome, ${currentUser.name}!`, 'success');
+    } else {
+        showNotification('Invalid login credentials. Please try again.', 'error');
+        
+        // Add shake animation to login form
+        document.getElementById('loginForm').style.animation = 'shake 0.5s';
+        setTimeout(() => {
+            document.getElementById('loginForm').style.animation = '';
+        }, 500);
+    }
+}
+
+function handleLogout() {
+    // Create a confirmation dialog
+    const logoutConfirm = document.createElement('div');
+    logoutConfirm.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+    `;
+    
+    logoutConfirm.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 400px; width: 90%; text-align: center;">
+            <h3 style="color: var(--primary); margin-bottom: 20px;">
+                <i class="fas fa-sign-out-alt"></i> Confirm Logout
+            </h3>
+            <p style="margin-bottom: 25px; color: #666;">Are you sure you want to logout from the system?</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="confirmLogout" style="
+                    background: var(--danger);
+                    color: white;
+                    border: none;
+                    padding: 12px 25px;
+                    border-radius: 50px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.3s;
+                ">
+                    <i class="fas fa-check"></i> Yes, Logout
+                </button>
+                <button id="cancelLogout" style="
+                    background: #666;
+                    color: white;
+                    border: none;
+                    padding: 12px 25px;
+                    border-radius: 50px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: all 0.3s;
+                ">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(logoutConfirm);
+    
+    // Add event listeners to confirmation buttons
+    document.getElementById('confirmLogout').addEventListener('click', function() {
+        performLogout();
+        document.body.removeChild(logoutConfirm);
+    });
+    
+    document.getElementById('cancelLogout').addEventListener('click', function() {
+        document.body.removeChild(logoutConfirm);
+    });
+}
+
+function performLogout() {
+    // Clear current user
+    currentUser = {
+        role: null,
+        name: null,
+        email: null,
+        group: null,
+        permissions: []
+    };
+    
+    // Remove from localStorage
+    localStorage.removeItem('currentUser');
+    
+    // Reset login form
+    document.querySelectorAll('.role-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('groupSelection').style.display = 'none';
+    document.getElementById('group').value = '';
+    
+    // Animate logout transition
+    document.getElementById('appContainer').style.opacity = '0';
+    document.getElementById('appContainer').style.transform = 'translateY(-20px)';
+    document.getElementById('appContainer').style.transition = 'all 0.5s ease';
+    
+    setTimeout(() => {
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'block';
+        
+        // Reset login screen position
+        document.getElementById('loginScreen').style.opacity = '0';
+        document.getElementById('loginScreen').style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            document.getElementById('loginScreen').style.transition = 'all 0.5s ease';
+            document.getElementById('loginScreen').style.opacity = '1';
+            document.getElementById('loginScreen').style.transform = 'translateY(0)';
+        }, 50);
+    }, 500);
+    
+    showNotification('Logged out successfully', 'info');
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for saved user session
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        try {
+            currentUser = JSON.parse(savedUser);
+            
+            // If we have a saved user, show main app directly
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContainer').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'grid';
+            
+            // Update UI
+            updateUserInterface();
+            
+            // Initialize app
+            initApp();
+            
+            // Show welcome back message
+            setTimeout(() => {
+                showNotification(`Welcome back, ${currentUser.name}!`, 'success');
+            }, 500);
+            
+        } catch (error) {
+            console.error('Error parsing saved user:', error);
+            // If there's an error, clear corrupted data and show login
+            localStorage.removeItem('currentUser');
+            setupLoginListeners();
+        }
+    } else {
+        // Show login screen
+        setupLoginListeners();
+        
+        // Add shake animation to login button for visual feedback
+        const loginBtn = document.getElementById('loginBtn');
+        loginBtn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 7px 20px rgba(0, 0, 0, 0.2)';
+        });
+        
+        loginBtn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.2)';
+        });
+    }
+    
+    // Add CSS for shake animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        #loginBtn {
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        #loginBtn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        #loginBtn:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        #logoutBtn {
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        #logoutBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            background: white !important;
+            color: var(--danger) !important;
+        }
+        
+        #logoutBtn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+    `;
+    document.head.appendChild(style);
+});
         // ============================================
         // EVANGELISM GROUP DATA
         // ============================================
