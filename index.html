@@ -2088,9 +2088,7 @@
   messagingSenderId: "693062499543",
   appId: "1:693062499543:web:c21976332b1e12d2eec492"
 };
-        };
-
-        // Firebase initialization
+      // Firebase initialization
         let firebaseApp, auth, db;
         let isOnline = navigator.onLine;
         let useFirebase = true; // Set to true when Firebase is configured
@@ -2101,12 +2099,12 @@
                 auth = firebase.auth();
                 db = firebase.firestore();
                 console.log("Firebase initialized successfully");
-            } else {
+            }; else {
                 console.log("Running in offline/local mode");
-            }
-        } catch (error) {
+            };
+        }; catch (error) {
             console.log("Firebase initialization failed, using local storage only");
-        }
+        };
         // ============================================
         // APPLICATION STATE
         // ============================================
